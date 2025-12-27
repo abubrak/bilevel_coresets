@@ -38,12 +38,28 @@ try the grid [10<sup>-2</sup>, 10<sup>-3</sup>, 10<sup>-4</sup>, 10<sup>-5</sup>
 
 ## Requirements
 
-Python 3 is required.  To install the required dependencies, run:
+Python 3.8+ is required.  To install the required dependencies, run:
 
 ```bash
 pip install -r requirements.txt
 ```
-If you are planning to use the NTK proxy, consider installing the GPU version of JAX: instructions [here](https://github.com/google/jax#installation).
+
+### CUDA 12 Support
+
+This repository now uses modern versions of PyTorch (>=2.1.0) and JAX (>=0.4.20) that support CUDA 12. 
+
+**For PyTorch with CUDA 12 (GPU support):**
+```bash
+pip install torch>=2.1.0 torchvision>=0.16.0 --index-url https://download.pytorch.org/whl/cu121
+```
+
+**For JAX with CUDA 12 (GPU support):**
+```bash
+pip install jax[cuda12]
+```
+
+If you are planning to use the NTK proxy with GPU acceleration, install JAX with CUDA 12 support using the command above. For more details, see the [JAX installation guide](https://github.com/google/jax#installation).
+
 If you would like to run the experiments, add the project root to your PYTHONPATH env variable.
 
 ## Data Summarization

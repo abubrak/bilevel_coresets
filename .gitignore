@@ -3,3 +3,8 @@
 /data/
 /cl_streaming/data/
 /data_summarization/results
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
