@@ -4,27 +4,22 @@ import numpy as np
 import random as rnd
 import os
 import json
+import sys
 from torch.utils.data import DataLoader
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import loss_utils
 import models
 import bilevel_coreset
+from kernel_utils import get_kernel_fn
 from cl_streaming import summary
 from cl_streaming import datagen
 from cl_streaming import training
-from cl_streaming import ntk_generator
 
 datasets = ['permmnist', 'splitmnist']
 methods = ['uniform', 'coreset',
            'kmeans_features', 'kcenter_features', 'kmeans_grads',
            'kmeans_embedding', 'kcenter_embedding', 'kcenter_grads',
            'entropy', 'hardest', 'frcl', 'icarl', 'grad_matching']
-
-
-def get_kernel_fn(dataset):
-    if dataset == 'permmnist':
-        return lambda x, y: ntk_generator.generate_fnn_ntk(x.reshape(-1, 28 * 28), y.reshape(-1, 28 * 28))
-    else:
-        return lambda x, y: ntk_generator.generate_cnn_ntk(x.reshape(-1, 28, 28, 1), y.reshape(-1, 28, 28, 1))
 
 
 def continual_learning(args):
