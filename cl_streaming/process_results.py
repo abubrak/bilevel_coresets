@@ -39,6 +39,37 @@ def get_result(method, dataset, beta, seeds, buffer_size, path='cl_results'):
     return res
 
 
+def print_results(study_name, methods, datasets, betas, seeds, buffer_size, path, save_path):
+    """Generic function to print results for any experiment type.
+    
+    Args:
+        study_name (str): Name of the study for display
+        methods (list): List of method names
+        datasets (list): List of dataset names
+        betas (list): List of beta values to search
+        seeds (range): Range of seed values
+        buffer_size (int): Size of the buffer
+        path (str): Path to results directory
+        save_path (str): Path to save best betas
+    """
+    best_betas = get_best_betas(methods, datasets, betas, seeds, buffer_size, save_best=True, 
+                                path=path, save_path=save_path)
+    print(f'{study_name} study\n')
+
+    print('Method \\ Dataset'.ljust(45), end='')
+    for dataset in datasets:
+        print(' ' + dataset.ljust(18), end='')
+    print('')
+    for method in methods:
+        print(method.ljust(43), end='')
+        for dataset in datasets:
+            beta = best_betas[method][dataset]
+            res = get_result(method, dataset, beta, seeds, buffer_size, path)
+            res = [r['test_acc'] for r in res]
+            print(' {:.2f} +- {:.2f}'.format(np.mean(res), np.std(res)).ljust(20), end='')
+        print('')
+
+
 def continual_learning_results():
     datasets = ['permmnist', 'splitmnist']
     methods = [
@@ -50,23 +81,9 @@ def continual_learning_results():
     seeds = range(5)
     betas = [0.01, 0.1, 1.0, 10.0, 100.0, 1000.0]
     buffer_size = 100
-
-    best_betas = get_best_betas(methods, datasets, betas, seeds, buffer_size, save_best=True, path='cl_results',
-                                save_path='cl_results/best_betas.txt')
-    print('Continual Learning study\n')
-
-    print('Method \ Dataset'.ljust(45), end='')
-    for dataset in datasets:
-        print(' ' + dataset.ljust(18), end='')
-    print('')
-    for method in methods:
-        print(method.ljust(43), end='')
-        for dataset in datasets:
-            beta = best_betas[method][dataset]
-            res = get_result(method, dataset, beta, seeds, buffer_size, 'cl_results')
-            res = [r['test_acc'] for r in res]
-            print(' {:.2f} +- {:.2f}'.format(np.mean(res), np.std(res)).ljust(20), end='')
-        print('')
+    
+    print_results('Continual Learning', methods, datasets, betas, seeds, buffer_size, 
+                  'cl_results', 'cl_results/best_betas.txt')
 
 
 def streaming_results():
@@ -75,23 +92,9 @@ def streaming_results():
     seeds = range(5)
     betas = [0.01, 0.1, 1.0, 10.0, 100.0, 1000.0]
     buffer_size = 100
-
-    best_betas = get_best_betas(methods, datasets, betas, seeds, buffer_size, save_best=True, path='streaming_results',
-                                save_path='streaming_results/best_betas.txt')
-    print('Streaming study\n')
-
-    print('Method \ Dataset'.ljust(45), end='')
-    for dataset in datasets:
-        print(' ' + dataset.ljust(18), end='')
-    print('')
-    for method in methods:
-        print(method.ljust(43), end='')
-        for dataset in datasets:
-            beta = best_betas[method][dataset]
-            res = get_result(method, dataset, beta, seeds, buffer_size, 'streaming_results')
-            res = [r['test_acc'] for r in res]
-            print(' {:.2f} +- {:.2f}'.format(np.mean(res), np.std(res)).ljust(20), end='')
-        print('')
+    
+    print_results('Streaming', methods, datasets, betas, seeds, buffer_size,
+                  'streaming_results', 'streaming_results/best_betas.txt')
 
 
 def imbalanced_streaming_results():
@@ -100,23 +103,9 @@ def imbalanced_streaming_results():
     seeds = range(5)
     betas = [0.01, 0.1, 1.0, 10.0, 100.0, 1000.0]
     buffer_size = 100
-
-    best_betas = get_best_betas(methods, datasets, betas, seeds, buffer_size, save_best=True, path='streaming_results',
-                                save_path='streaming_results/best_betas_imbalanced.txt')
-    print('Streaming study\n')
-
-    print('Method \ Dataset'.ljust(45), end='')
-    for dataset in datasets:
-        print(' ' + dataset.ljust(18), end='')
-    print('')
-    for method in methods:
-        print(method.ljust(43), end='')
-        for dataset in datasets:
-            beta = best_betas[method][dataset]
-            res = get_result(method, dataset, beta, seeds, buffer_size, 'streaming_results')
-            res = [r['test_acc'] for r in res]
-            print(' {:.2f} +- {:.2f}'.format(np.mean(res), np.std(res)).ljust(20), end='')
-        print('')
+    
+    print_results('Streaming', methods, datasets, betas, seeds, buffer_size,
+                  'streaming_results', 'streaming_results/best_betas_imbalanced.txt')
 
 
 def splitcifar_results():
@@ -131,23 +120,9 @@ def splitcifar_results():
     seeds = range(5)
     betas = [0.01, 0.1, 1.0, 10.0, 100.0, 1000.0]
     buffer_size = 200
-
-    best_betas = get_best_betas(methods, datasets, betas, seeds, buffer_size, save_best=True, path='cl_results',
-                                save_path='cl_results/best_betas_splitcifar.txt')
-    print('Streaming study\n')
-
-    print('Method \ Dataset'.ljust(45), end='')
-    for dataset in datasets:
-        print(' ' + dataset.ljust(18), end='')
-    print('')
-    for method in methods:
-        print(method.ljust(43), end='')
-        for dataset in datasets:
-            beta = best_betas[method][dataset]
-            res = get_result(method, dataset, beta, seeds, buffer_size, 'cl_results')
-            res = [r['test_acc'] for r in res]
-            print(' {:.2f} +- {:.2f}'.format(np.mean(res), np.std(res)).ljust(20), end='')
-        print('')
+    
+    print_results('Streaming', methods, datasets, betas, seeds, buffer_size,
+                  'cl_results', 'cl_results/best_betas_splitcifar.txt')
 
 
 def imbalanced_streaming_cifar_results():
@@ -156,23 +131,9 @@ def imbalanced_streaming_cifar_results():
     seeds = range(5)
     betas = [0.01, 0.1, 1.0, 10.0, 100.0, 1000.0]
     buffer_size = 200
-
-    best_betas = get_best_betas(methods, datasets, betas, seeds, buffer_size, save_best=True, path='streaming_results',
-                                save_path='streaming_results/best_betas_imbalanced_cifar.txt')
-    print('Streaming study\n')
-
-    print('Method \ Dataset'.ljust(45), end='')
-    for dataset in datasets:
-        print(' ' + dataset.ljust(18), end='')
-    print('')
-    for method in methods:
-        print(method.ljust(43), end='')
-        for dataset in datasets:
-            beta = best_betas[method][dataset]
-            res = get_result(method, dataset, beta, seeds, buffer_size, 'streaming_results')
-            res = [r['test_acc'] for r in res]
-            print(' {:.2f} +- {:.2f}'.format(np.mean(res), np.std(res)).ljust(20), end='')
-        print('')
+    
+    print_results('Streaming', methods, datasets, betas, seeds, buffer_size,
+                  'streaming_results', 'streaming_results/best_betas_imbalanced_cifar.txt')
 
 
 if __name__ == "__main__":

@@ -4,6 +4,8 @@ import itertools
 import sys, os
 import argparse
 import random
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from runner_utils import setup_environment, get_gpu_id
 
 # adapt these to you setup
 NR_GPUS = 4
@@ -15,13 +17,9 @@ cnt = -1
 def call_script(args):
     global cnt
     exp, method, coreset_size, seed = args
-    crt_env = os.environ.copy()
-    crt_env['OMP_NUM_THREADS'] = '1'
-    crt_env['MKL_NUM_THREADS'] = '1'
-    crt_env['XLA_PYTHON_CLIENT_PREALLOCATE'] = 'false'
     cnt += 1
-    gpu = cnt % NR_GPUS
-    crt_env['CUDA_VISIBLE_DEVICES'] = str(gpu)
+    gpu = get_gpu_id(cnt, NR_GPUS)
+    crt_env = setup_environment(gpu)
     print(args)
     sp.call([sys.executable, '{}.py'.format(exp), '--seed', str(seed), '--method', method,
              '--coreset_size', str(coreset_size)], env=crt_env)
