@@ -5,17 +5,28 @@ Demonstration script for the Bilevel Coresets repository.
 This script demonstrates the core functionality and displays expected results.
 """
 
+import os
 import sys
 import numpy as np
 import torch
 
-sys.path.insert(0, '/home/runner/work/bilevel_coresets/bilevel_coresets')
+# Add the repository root to the path (works from any directory)
+_REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
 
 import bilevel_coreset
 import loss_utils
 import warnings
 
-warnings.filterwarnings('ignore')
+# Suppress specific warnings from JAX/TensorFlow/Keras that don't affect functionality
+warnings.filterwarnings('ignore', category=FutureWarning, module='keras')
+warnings.filterwarnings('ignore', category=DeprecationWarning, module='jax')
+
+
+def linear_kernel_fn(x1, x2):
+    """Linear kernel function: K(x1, x2) = x1 @ x2.T"""
+    return np.dot(x1, x2.T)
 
 
 def print_header(title):
@@ -39,8 +50,6 @@ def demo_regression_coreset():
     y = (X @ np.random.randn(n_features, 1) + np.random.randn(n_samples, 1) * 0.5).astype(np.float32)
     
     print(f"\nDataset: {n_samples} samples, {n_features} features")
-    
-    linear_kernel_fn = lambda x1, x2: np.dot(x1, x2.T)
     
     coreset_size = 10
     bc = bilevel_coreset.BilevelCoreset(
@@ -79,8 +88,6 @@ def demo_classification_coreset():
     
     print(f"\nDataset: {n_samples} samples, {n_features} features, {n_classes} classes")
     print(f"Class distribution in full data: {np.bincount(y, minlength=n_classes)}")
-    
-    linear_kernel_fn = lambda x1, x2: np.dot(x1, x2.T)
     
     coreset_size = 20
     bc = bilevel_coreset.BilevelCoreset(
