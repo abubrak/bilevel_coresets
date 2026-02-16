@@ -67,7 +67,7 @@ class BilevelCoreset():
             if torch.isnan(weights.grad.data).any():
                 if old_grad is None:
                     break
-                weights.grad = old_grad
+                weights.grad.data = old_grad
             outer_optimizer.step()
             weights.data = torch.max(weights.data, torch.zeros(m).type(torch.double))
             old_grad = copy.deepcopy(weights.grad.data)
