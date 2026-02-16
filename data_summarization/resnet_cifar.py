@@ -37,8 +37,12 @@ def get_datasets():
     return trainset, trainset_wo_aug, testset
 
 
+def get_device():
+    return 'cuda' if torch.cuda.is_available() else 'cpu'
+
+
 def create_model():
-    return models.ResNet18().cuda()
+    return models.ResNet18().to(get_device())
 
 
 def train(model, loader, optimizer, nr_epochs=1):
@@ -50,8 +54,9 @@ def train(model, loader, optimizer, nr_epochs=1):
         running_loss = 0
         pbar = tqdm.tqdm(loader, unit="images", unit_scale=args.batch_size)
         model.train()
+        device = get_device()
         for batch_idx, (inputs, targets) in enumerate(pbar):
-            inputs, targets = inputs.cuda(), targets.cuda()
+            inputs, targets = inputs.to(device), targets.to(device)
             optimizer.zero_grad()
             outputs = model(inputs)
             loss = loss_fn(outputs, targets)
@@ -77,9 +82,10 @@ def test(model, loader):
     total = 0
     loss_fn = nn.CrossEntropyLoss()
     loss = 0
+    device = get_device()
     with torch.no_grad():
         for batch_idx, (inputs, targets) in enumerate(loader):
-            inputs, targets = inputs.cuda(), targets.cuda()
+            inputs, targets = inputs.to(device), targets.to(device)
             outputs = model(inputs)
             loss += loss_fn(outputs, targets)
             _, predicted = outputs.max(1)

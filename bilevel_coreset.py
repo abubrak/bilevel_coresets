@@ -94,7 +94,7 @@ class BilevelCoreset:
             outer_loss = self.outer_loss_fn(K_X_S, alpha, y_X, data_weights, 0)
 
             # calculate the implicit gradient
-            weights._grad.data = self.implicit_grad_batch(inner_loss, outer_loss, weights, alpha).clamp_(-1, 1)
+            weights.grad = self.implicit_grad_batch(inner_loss, outer_loss, weights, alpha).clamp_(-1, 1)
             outer_optimizer.step()
 
             # project weights to ensure positivity

@@ -24,8 +24,8 @@ def plot_mnist_classification():
                 data = json.load(f)
             cnn_cntk_x.append(sz)
             cnn_cntk_y.append(data['results'] * 100)
-    sns.lineplot(cnn_uniform_x, cnn_uniform_y, color='red', label='Uniform')
-    ax = sns.lineplot(cnn_cntk_x, cnn_cntk_y, color='green', label='Coreset')
+    sns.lineplot(x=cnn_uniform_x, y=cnn_uniform_y, color='red', label='Uniform')
+    ax = sns.lineplot(x=cnn_cntk_x, y=cnn_cntk_y, color='green', label='Coreset')
     ax.lines[1].set_linestyle("--")
     plt.plot(200, 95, 'o', c='purple', label='Active Learning')
     plt.plot(90, 90, 'o', c='purple')
@@ -52,10 +52,10 @@ def plot_krr_cifar():
                 results_per_method['y'].append(data[k] * 100)
         results[method] = results_per_method
 
-    sns.lineplot(results['uniform']['x'], results['uniform']['y'], color='red', label='Uniform')
-    sns.lineplot(results['uniform_weights_opt']['x'], results['uniform_weights_opt']['y'], color='blue',
+    sns.lineplot(x=results['uniform']['x'], y=results['uniform']['y'], color='red', label='Uniform')
+    sns.lineplot(x=results['uniform_weights_opt']['x'], y=results['uniform_weights_opt']['y'], color='blue',
                  label='Uniform\n(weights opt)')
-    ax = sns.lineplot(results['coreset']['x'], results['coreset']['y'], color='green', label='Coreset')
+    ax = sns.lineplot(x=results['coreset']['x'], y=results['coreset']['y'], color='green', label='Coreset')
     ax.lines[1].set_linestyle("dotted")
     ax.lines[2].set_linestyle("dashdot")
 
@@ -81,8 +81,8 @@ def plot_cifar_summary():
                     results_per_method['y'].append(data['test_acc'])
             results[method] = results_per_method
 
-    sns.lineplot(results['uniform']['x'], results['uniform']['y'], color='red', label='Uniform')
-    ax = sns.lineplot(results['coreset']['x'], results['coreset']['y'], color='green', label='Coreset\n(unweighted)')
+    sns.lineplot(x=results['uniform']['x'], y=results['uniform']['y'], color='red', label='Uniform')
+    ax = sns.lineplot(x=results['coreset']['x'], y=results['coreset']['y'], color='green', label='Coreset\n(unweighted)')
     ax.lines[0].set_linestyle("dotted")
     ax.lines[1].set_linestyle("dashdot")
 
