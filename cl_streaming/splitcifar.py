@@ -223,7 +223,7 @@ def reservoir_buffer(generator, stream_batch_size, buffer_size, training_op):
                 if ind < buffer_size:
                     prev_inds[ind] = i
         cnt += 1
-        prev_inds = prev_inds.astype(np.int)
+        prev_inds = prev_inds.astype(np.intp)
         training_op.buffer = [
             (get_custom_loader(generator.train_dataset, prev_inds), prev_inds, np.ones(len(prev_inds)))]
 
@@ -273,7 +273,7 @@ def cbrs(generator, stream_batch_size, buffer_size, training_op):
             largest = np.argmax(m_c)
             is_class_full[largest] = 1
 
-        prev_inds = prev_inds.astype(np.int)
+        prev_inds = prev_inds.astype(np.intp)
         training_op.buffer = [
             (get_custom_loader(generator.train_dataset, prev_inds), prev_inds, np.ones(len(prev_inds)))]
         cnt += 1

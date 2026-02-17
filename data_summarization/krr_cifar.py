@@ -39,8 +39,8 @@ class BilevelCoreset():
 
     def inverse_hvp(self, loss, params, v):
         op = LinearOperator((len(v), len(v)),
-                            matvec=lambda x: self.hvp(loss, params, torch.DoubleTensor(x)).detach().cpu().numpy())
-        return torch.DoubleTensor(cg(op, v, maxiter=self.max_conj_grad_it)[0])
+                            matvec=lambda x: self.hvp(loss, params, torch.tensor(x, dtype=torch.float64)).detach().cpu().numpy())
+        return torch.tensor(cg(op, v, maxiter=self.max_conj_grad_it)[0], dtype=torch.float64)
 
     def implicit_grad(self, outer_loss, inner_loss, weights, alpha):
         dg_dalpha = grad(outer_loss, alpha)[0].view(-1).detach()
@@ -63,14 +63,14 @@ class BilevelCoreset():
             inner_loss = self.inner_loss_fn(K_S_S, alpha, y_S, weights, self.reg_penalty)
             outer_loss = self.outer_loss_fn(K_X_S, alpha, y_X, data_weights, 0)
             outer_loss.backward()
-            weights._grad.data.clamp_(-0.1, 0.1)
-            if torch.isnan(weights._grad.data).any():
+            weights.grad.data.clamp_(-0.1, 0.1)
+            if torch.isnan(weights.grad.data).any():
                 if old_grad is None:
                     break
-                weights._grad.data = old_grad
+                weights.grad.data = old_grad
             outer_optimizer.step()
             weights.data = torch.max(weights.data, torch.zeros(m).type(torch.double))
-            old_grad = copy.deepcopy(weights._grad.data)
+            old_grad = copy.deepcopy(weights.grad.data)
 
         return weights, alpha, outer_loss, inner_loss
 
