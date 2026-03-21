@@ -38,6 +38,7 @@ from models_jax import (
 from ntk_core import (
     ntk_matrix,
     ntk_matrix_col_blocked,
+    ntk_matrix_blocked_rect,
     ntk_matrix_skip,
 )
 
@@ -78,61 +79,76 @@ def _get_resnet_params():
 # 公开接口（与原 ntk_generator.py 完全兼容）
 # ─────────────────────────────────────────────────────────────────────────────
 
-def generate_fnn_ntk(X: np.ndarray, Y: np.ndarray) -> np.ndarray:
+def generate_fnn_ntk(X: np.ndarray, Y: np.ndarray,
+                     row_block: int = 500,
+                     col_block: int = 500) -> np.ndarray:
     """
     计算 FNN 的 NTK 矩阵 K[i,j] = K_NTK(X[i], Y[j])。
 
-    原版：np.array(fnn_kernel_fn(X, Y, 'ntk'))
-    本版：经验 NTK，双重 vmap 一次性计算（适合 FNN 参数量小的场景）
+    FNN 参数量约 90K，每样本 Jacobian ~3.6MB，
+    row_block=500 时峰值显存约 1.8GB，T4 完全可用。
+    若数据量很小（<500 样本）则直接一次性计算，无额外开销。
 
     Parameters
     ----------
-    X : np.ndarray  (n, 784)  MNIST 展平输入
+    X : np.ndarray  (n, 784)
     Y : np.ndarray  (m, 784)
-
-    Returns
-    -------
-    np.ndarray  (n, m)
+    row_block / col_block : int  分块大小，默认 500（约 1.8GB 峰值）
     """
-    return ntk_matrix(_fnn_apply, _fnn_params, X, Y)
+    n, m = X.shape[0], Y.shape[0]
+    # 小数据集直接一次性计算，无需分块
+    if n <= row_block and m <= col_block:
+        return ntk_matrix(_fnn_apply, _fnn_params, X, Y)
+    return ntk_matrix_blocked_rect(
+        _fnn_apply, _fnn_params, X, Y, row_block=row_block, col_block=col_block)
 
 
-def generate_cnn_ntk(X: np.ndarray, Y: np.ndarray) -> np.ndarray:
+def generate_cnn_ntk(X: np.ndarray, Y: np.ndarray,
+                     row_block: int = 10,
+                     col_block: int = 10) -> np.ndarray:
     """
     计算 CNN 的 NTK 矩阵 K[i,j] = K_NTK(X[i], Y[j])。
 
-    原版：逐列循环 for i in range(m): K[:,i:i+1] = cnn_kernel_fn(X, Y[i:i+1], 'ntk')
-    本版：复现相同的逐列策略（col_block=1），降低峰值显存。
+    ⚠️  原实现（ntk_matrix_col_blocked）先一次性计算全部 X1 的 Jacobian，
+        对于 n=10000 样本，峰值显存 = 10000 × 10 × 3.4M × 4B ≈ 1.36TB，
+        直接 OOM。
+
+    本版使用双向分块（ntk_matrix_blocked_rect），峰值显存仅为：
+        (row_block + col_block) × 10 × 3.4M × 4B
+        默认 row_block=col_block=10 → 约 2.72GB，T4 (15GB) 完全可用。
+
+    显存 vs 速度权衡（T4 15GB，CNN 3.4M params）
+    -----------------------------------------------
+    block=5   → ~1.36GB   最安全
+    block=10  → ~2.72GB   推荐默认
+    block=30  → ~8.16GB   更快，仍有余量给 PyTorch
+    block=50  → ~13.6GB   接近极限，不推荐
 
     Parameters
     ----------
-    X : np.ndarray  (n, 28, 28, 1)  NHWC 格式的 MNIST 图像
+    X : np.ndarray  (n, 28, 28, 1)  NHWC 格式
     Y : np.ndarray  (m, 28, 28, 1)
-
-    Returns
-    -------
-    np.ndarray  (n, m)
+    row_block / col_block : int  行/列分块大小
     """
-    return ntk_matrix_col_blocked(_cnn_apply, _cnn_params, X, Y, col_block=1)
+    return ntk_matrix_blocked_rect(
+        _cnn_apply, _cnn_params, X, Y, row_block=row_block, col_block=col_block)
 
 
 def generate_resnet_ntk(X: np.ndarray, Y: np.ndarray,
-                        skip: int = 25) -> np.ndarray:
+                        skip: int = 5) -> np.ndarray:
     """
     计算 ResNet 的 NTK 矩阵，除以 100（与原版 return K / 100 一致）。
 
-    原版：逐 skip 列循环；结果除以 100 以稳定数值。
-    本版：复现相同的 skip-batch 策略。
+    使用双向分块，峰值显存 = 2 × skip × 10 × 11M × 4B
+    skip=5  → ~4.4GB，T4 可用
+    skip=25 → ~22GB，OOM！原版默认值在 T4 上不可用，已改为 5。
 
     Parameters
     ----------
-    X : np.ndarray  (n, 32, 32, 3)  NHWC 格式的 CIFAR-10 图像
-    Y : np.ndarray  (m, 32, 32, 3)
-    skip : int  每批处理的列数，默认 25
-
-    Returns
-    -------
-    np.ndarray  (n, m)，已除以 100
+    X, Y : np.ndarray  (n/m, 32, 32, 3)  NHWC
+    skip  : int  行/列分块大小，默认 5（T4 安全）
     """
-    K = ntk_matrix_skip(_resnet_apply, _get_resnet_params(), X, Y, skip=skip)
+    K = ntk_matrix_blocked_rect(
+        _resnet_apply, _get_resnet_params(), X, Y,
+        row_block=skip, col_block=skip)
     return K / 100.0

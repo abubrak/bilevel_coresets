@@ -34,7 +34,7 @@ from jax import random, jit
 import jax.numpy as jnp
 
 from models_jax import wrn_init, wrn_fwd
-from ntk_core import ntk_matrix_blocked
+from ntk_core import ntk_matrix_blocked, ntk_matrix_blocked_rect
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 模块级参数初始化（对应原版 init_fn, apply_fn, kernel_fn = WideResnet(...) 模块级定义）
@@ -53,31 +53,18 @@ def generate_kernel(X: np.ndarray, block_size: int = 10) -> np.ndarray:
     """
     计算 WideResNet 的 NTK 矩阵 K[i,j] = K_NTK(X[i], X[j])。
 
-    原版：
-        for i in range(n // block_size):
-            for j in range(n // block_size):
-                K[bi:ei, bj:ej] = kernel_fn(X[bi:ei], X[bj:ej], 'ntk')
-
-    本版：用 ntk_matrix_blocked 复现完全相同的双重分块策略。
+    使用 ntk_matrix_blocked_rect 双向分块，峰值显存约：
+        2 × block_size × out_dim × n_params × 4B
+        WRN(k=1): n_params≈0.3M → block=10 → ~240MB，非常安全
 
     Parameters
     ----------
-    X : np.ndarray  (N, H, W, C)，NHWC 格式（与原版 .transpose(0,2,3,1) 后一致）
-    block_size : int  每块的行/列数，默认 10（与原版一致）
-
-    Returns
-    -------
-    np.ndarray  (N, N)
-
-    Notes
-    -----
-    原版仅计算整除部分（n // block_size × block_size），边缘样本被丢弃。
-    本版通过 ntk_matrix_blocked 处理全部 N 个样本（包含边缘块）。
-    如需严格复现原版行为，对 X 截断至 (n // block_size * block_size) 即可。
+    X : np.ndarray  (N, H, W, C)，NHWC 格式
+    block_size : int  行/列分块大小，默认 10
     """
-    return ntk_matrix_blocked(
+    return ntk_matrix_blocked_rect(
         _wrn_apply, _wrn_params,
-        X,
+        X, X,
         row_block=block_size,
         col_block=block_size,
     )

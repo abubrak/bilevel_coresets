@@ -53,7 +53,7 @@ for p in [NTK_JAX_DIR, BILEVEL_DIR, CL_DIR]:
         sys.path.insert(0, p)
 
 # 屏蔽 JAX 的 GPU 警告（CPU 运行时）
-os.environ.setdefault('JAX_PLATFORMS', 'cpu')
+# 防止 JAX 预分配全部显存（与 PyTorch 共用显存时必须设置）
 os.environ.setdefault('XLA_PYTHON_CLIENT_PREALLOCATE', 'false')
 
 import jax

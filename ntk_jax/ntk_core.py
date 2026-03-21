@@ -158,19 +158,49 @@ def ntk_matrix_blocked(apply_fn: Callable, params: Any,
     ----------
     row_block / col_block : int
         每次处理的行/列数，调小以节省显存。
+        显存估算：block × out_dim × n_params × 4 bytes
+        CNN (3.4M params, out=10)：block=10 → ~1.36GB，block=50 → ~6.8GB
+    """
+    return ntk_matrix_blocked_rect(apply_fn, params, X, X, row_block, col_block)
+
+
+def ntk_matrix_blocked_rect(apply_fn: Callable, params: Any,
+                             X1: np.ndarray, X2: np.ndarray,
+                             row_block: int = 10,
+                             col_block: int = 10) -> np.ndarray:
+    """
+    双向分块计算矩形 NTK 矩阵 K[i,j] = K(X1[i], X2[j])，shape (n1, n2)。
+
+    行和列都分块，峰值显存仅为单个块的 Jacobian：
+        row_block × out_dim × n_params × 4 bytes（行块）
+      + col_block × out_dim × n_params × 4 bytes（列块）
+
+    这是处理大规模 CNN/ResNet NTK 的正确方法。
+
+    Parameters
+    ----------
+    row_block : int  每次计算的 X1 行数
+    col_block : int  每次计算的 X2 列数
+
+    显存预算参考（CNN，3.4M 参数，out_dim=10，float32）
+    -------------------------------------------------------
+    block=1  →  ~136MB/块   最慢但最省显存
+    block=5  →  ~680MB/块   T4 15GB 上约 10 块并行
+    block=10 →  ~1.36GB/块  T4 推荐默认值
+    block=50 →  ~6.8GB/块   T4 较激进，留余量给 PyTorch
     """
     f_flat, fp, _ = _make_flat_fn(apply_fn, params)
     batch_jac = jit(vmap(jacrev(f_flat), in_axes=(None, 0)))
 
-    n = X.shape[0]
-    K = np.zeros((n, n), dtype=np.float32)
+    n1, n2 = X1.shape[0], X2.shape[0]
+    K = np.zeros((n1, n2), dtype=np.float32)
 
-    for i in range(0, n, row_block):
-        end_i = min(i + row_block, n)
-        Ji = batch_jac(fp, X[i:end_i])          # (rb, out_dim, n_params)
-        for j in range(0, n, col_block):
-            end_j = min(j + col_block, n)
-            Jj = batch_jac(fp, X[j:end_j])      # (cb, out_dim, n_params)
+    for i in range(0, n1, row_block):
+        end_i = min(i + row_block, n1)
+        Ji = batch_jac(fp, X1[i:end_i])              # (rb, out_dim, n_params)
+        for j in range(0, n2, col_block):
+            end_j = min(j + col_block, n2)
+            Jj = batch_jac(fp, X2[j:end_j])          # (cb, out_dim, n_params)
             K_block = jnp.einsum('ikp,jkp->ij', Ji, Jj)  # (rb, cb)
             K[i:end_i, j:end_j] = np.array(K_block)
 
@@ -186,6 +216,7 @@ def ntk_matrix_skip(apply_fn: Callable, params: Any,
                     skip: int = 25) -> np.ndarray:
     """
     按 skip 列批量计算，复现 generate_resnet_ntk(X, Y, skip=25) 的模式。
-    先算 X1 的 Jacobian，再逐 skip 列处理 X2。
+    使用双向分块：行块=skip，列块=skip。
     """
-    return ntk_matrix_col_blocked(apply_fn, params, X1, X2, col_block=skip)
+    return ntk_matrix_blocked_rect(apply_fn, params, X1, X2,
+                                   row_block=skip, col_block=skip)
