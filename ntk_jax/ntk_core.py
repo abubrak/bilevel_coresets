@@ -108,8 +108,10 @@ def ntk_matrix(apply_fn: Callable, params: Any,
     J1 = batch_jac(fp, X1)   # (n1, out_dim, n_params)
     J2 = batch_jac(fp, X2)   # (n2, out_dim, n_params)
 
-    # K[i,j] = Σ_{k,p} J1[i,k,p] * J2[j,k,p]
-    K = jnp.einsum('ikp,jkp->ij', J1, J2)
+    # reshape 成 2D 再做 matmul，避免 einsum 创建 (n1,n2,out_dim,n_params) 中间张量
+    n1 = J1.shape[0]
+    n2 = J2.shape[0]
+    K = J1.reshape(n1, -1) @ J2.reshape(n2, -1).T   # (n1, n2)
     return np.array(K)
 
 
@@ -198,10 +200,15 @@ def ntk_matrix_blocked_rect(apply_fn: Callable, params: Any,
     for i in range(0, n1, row_block):
         end_i = min(i + row_block, n1)
         Ji = batch_jac(fp, X1[i:end_i])              # (rb, out_dim, n_params)
+        rb = end_i - i
+        Ji_2d = Ji.reshape(rb, -1)                   # (rb, out_dim*n_params)
         for j in range(0, n2, col_block):
             end_j = min(j + col_block, n2)
             Jj = batch_jac(fp, X2[j:end_j])          # (cb, out_dim, n_params)
-            K_block = jnp.einsum('ikp,jkp->ij', Ji, Jj)  # (rb, cb)
+            cb = end_j - j
+            Jj_2d = Jj.reshape(cb, -1)               # (cb, out_dim*n_params)
+            # matmul 比 einsum 更省显存：不创建 (rb,cb,out,params) 中间张量
+            K_block = Ji_2d @ Jj_2d.T                # (rb, cb)
             K[i:end_i, j:end_j] = np.array(K_block)
 
     return K

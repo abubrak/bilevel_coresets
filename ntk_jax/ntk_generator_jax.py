@@ -103,32 +103,28 @@ def generate_fnn_ntk(X: np.ndarray, Y: np.ndarray,
         _fnn_apply, _fnn_params, X, Y, row_block=row_block, col_block=col_block)
 
 
+
+
 def generate_cnn_ntk(X: np.ndarray, Y: np.ndarray,
-                     row_block: int = 10,
-                     col_block: int = 10) -> np.ndarray:
+                     row_block: int = 2,
+                     col_block: int = 2) -> np.ndarray:
     """
     计算 CNN 的 NTK 矩阵 K[i,j] = K_NTK(X[i], Y[j])。
 
-    ⚠️  原实现（ntk_matrix_col_blocked）先一次性计算全部 X1 的 Jacobian，
-        对于 n=10000 样本，峰值显存 = 10000 × 10 × 3.4M × 4B ≈ 1.36TB，
-        直接 OOM。
+    峰值显存 = (row_block + col_block) × out_dim × n_params × 4B
+    CNN n_params ≈ 3.4M, out_dim = 10:
+        block=1  →  272MB   最安全
+        block=2  →  544MB   默认，T4 与 PyTorch 共存时安全
+        block=5  →  1.36GB  更快，显存充裕时可用
+        block=10 →  2.72GB  PyTorch 占用较多时易 OOM
 
-    本版使用双向分块（ntk_matrix_blocked_rect），峰值显存仅为：
-        (row_block + col_block) × 10 × 3.4M × 4B
-        默认 row_block=col_block=10 → 约 2.72GB，T4 (15GB) 完全可用。
-
-    显存 vs 速度权衡（T4 15GB，CNN 3.4M params）
-    -----------------------------------------------
-    block=5   → ~1.36GB   最安全
-    block=10  → ~2.72GB   推荐默认
-    block=30  → ~8.16GB   更快，仍有余量给 PyTorch
-    block=50  → ~13.6GB   接近极限，不推荐
+    若仍然 OOM，传入 row_block=1, col_block=1 即可。
 
     Parameters
     ----------
     X : np.ndarray  (n, 28, 28, 1)  NHWC 格式
     Y : np.ndarray  (m, 28, 28, 1)
-    row_block / col_block : int  行/列分块大小
+    row_block / col_block : int  行/列分块大小，默认 2
     """
     return ntk_matrix_blocked_rect(
         _cnn_apply, _cnn_params, X, Y, row_block=row_block, col_block=col_block)
