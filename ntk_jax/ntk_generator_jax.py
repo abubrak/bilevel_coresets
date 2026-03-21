@@ -75,6 +75,25 @@ def _get_resnet_params():
     return _resnet_params
 
 
+
+def _normalize_kernel(K: np.ndarray) -> np.ndarray:
+    """
+    将 NTK 矩阵归一化：除以对角线均值（若为方阵）否则除以全体均值。
+
+    neural_tangents 的解析 NTK 通过 NTK 参数化自动归一化；
+    经验 NTK 的数值尺度取决于随机初始化，可能比解析版大若干数量级。
+    bilevel_coreset 的内层 L-BFGS 对核尺度极为敏感，归一化后
+    可沿用原论文的 inner_lr / inner_reg 超参数而不发散。
+    """
+    if K.shape[0] == K.shape[1]:
+        scale = float(np.mean(np.diag(K)))
+    else:
+        scale = float(np.mean(K))
+    if scale > 0:
+        K = K / scale
+    return K
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 公开接口（与原 ntk_generator.py 完全兼容）
 # ─────────────────────────────────────────────────────────────────────────────
@@ -96,11 +115,12 @@ def generate_fnn_ntk(X: np.ndarray, Y: np.ndarray,
     row_block / col_block : int  分块大小，默认 500（约 1.8GB 峰值）
     """
     n, m = X.shape[0], Y.shape[0]
-    # 小数据集直接一次性计算，无需分块
     if n <= row_block and m <= col_block:
-        return ntk_matrix(_fnn_apply, _fnn_params, X, Y)
-    return ntk_matrix_blocked_rect(
-        _fnn_apply, _fnn_params, X, Y, row_block=row_block, col_block=col_block)
+        K = ntk_matrix(_fnn_apply, _fnn_params, X, Y)
+    else:
+        K = ntk_matrix_blocked_rect(
+            _fnn_apply, _fnn_params, X, Y, row_block=row_block, col_block=col_block)
+    return _normalize_kernel(K)
 
 
 
@@ -126,8 +146,9 @@ def generate_cnn_ntk(X: np.ndarray, Y: np.ndarray,
     Y : np.ndarray  (m, 28, 28, 1)
     row_block / col_block : int  行/列分块大小，默认 2
     """
-    return ntk_matrix_blocked_rect(
+    K = ntk_matrix_blocked_rect(
         _cnn_apply, _cnn_params, X, Y, row_block=row_block, col_block=col_block)
+    return _normalize_kernel(K)
 
 
 def generate_resnet_ntk(X: np.ndarray, Y: np.ndarray,
@@ -147,4 +168,4 @@ def generate_resnet_ntk(X: np.ndarray, Y: np.ndarray,
     K = ntk_matrix_blocked_rect(
         _resnet_apply, _get_resnet_params(), X, Y,
         row_block=skip, col_block=skip)
-    return K / 100.0
+    return _normalize_kernel(K / 100.0)

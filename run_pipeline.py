@@ -236,8 +236,9 @@ def run_mnist(method: str = 'coreset', coreset_size: int = 100, seed: int = 0):
             out_dim=10,
             max_outer_it=10,
             outer_lr=0.05,
+            inner_lr=0.01,   # 原默认 0.25；归一化后仍需保守步长
             max_inner_it=200,
-            logging_period=1000  # 每 1000 步打印一次
+            logging_period=1000
         )
         # ── 原版调用（接口完全一致，只是 kernel_fn 来源不同）
         inds, weights = bc.build_with_representer_proxy_batch(
@@ -381,7 +382,9 @@ def run_continual_learning(dataset: str = 'splitmnist',
         outer_loss_fn=loss_utils.cross_entropy,
         inner_loss_fn=loss_utils.cross_entropy,
         out_dim=10, max_outer_it=1,
-        max_inner_it=200, logging_period=9999
+        inner_lr=0.01,       # 原默认 0.25；经验 NTK 归一化后仍需更保守的步长
+        max_inner_it=200,
+        logging_period=9999
     )
     rs = np.random.RandomState(seed)
 
